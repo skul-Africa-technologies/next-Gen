@@ -46,7 +46,7 @@ export default function Hero() {
               Next Generation
             </span>
             <br />
-            <span className="text-white">of Students</span>
+            <span className="text-white">of Leaders</span>
           </h1>
 
           <motion.p
