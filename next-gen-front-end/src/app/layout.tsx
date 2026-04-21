@@ -1,10 +1,15 @@
 import "./globals.css";
-import { Poppins } from "next/font/google";
+import { Poppins, Space_Grotesk } from "next/font/google";
 
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "600", "700", "900"],
   variable: "--font-poppins",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  variable: "--font-space-grotesk",
 });
 
 export const metadata = {
@@ -19,8 +24,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={poppins.className}>
-      <body className="bg-black text-white antialiased">{children}</body>
+    <html lang="en" className={`${poppins.variable} ${spaceGrotesk.variable}`}>
+      <body className="bg-black text-white antialiased font-sans">{children}</body>
     </html>
   );
 }

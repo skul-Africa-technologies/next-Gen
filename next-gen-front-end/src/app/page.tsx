@@ -6,6 +6,8 @@ import Footer from "@/components/Footer";
 import CampusGallery from "@/components/CampusGallery";
 import Navbar from "@/components/Navbar";
 import Events from "@/components/Events";
+import Hackathons from "@/components/Hackathons";
+import Networking from "@/components/Networking";
 
 export default function Home() {
   return (
@@ -13,8 +15,10 @@ export default function Home() {
         <Navbar />
       <Hero />
       <Features />
+      <Hackathons />
+      <Networking />
        <CampusGallery />
-       <Events />
+        <Events />
       <HowItWorks />
       <CTA />
       <Footer />

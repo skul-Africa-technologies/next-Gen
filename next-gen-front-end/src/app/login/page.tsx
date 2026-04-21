@@ -3,24 +3,21 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle, FiLoader, FiMapPin } from "react-icons/fi";
+import { FiMail, FiLock, FiEye, FiEyeOff, FiAlertCircle, FiLoader } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 
-export default function SignupPage() {
+export default function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   
   const [formData, setFormData] = useState({
-    name: "",
     email: "",
     password: "",
-    school: "",
-    level: "",
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     setError("");
   };
@@ -31,30 +28,26 @@ export default function SignupPage() {
     setError("");
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/register`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...formData,
-          username: formData.email.split('@')[0],
-          role: "student",
-        }),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
+        throw new Error(data.message || "Login failed");
       }
 
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
       
-      router.push("/dashboard");
+      router.push(data.user?.role === "admin" ? "/admin" : "/dashboard");
     } catch (err: any) {
-      setError(err.message || "Registration failed. Please try again.");
+      setError(err.message || "Invalid email or password");
     } finally {
       setIsLoading(false);
     }
@@ -67,7 +60,7 @@ export default function SignupPage() {
         <div 
           className="absolute inset-0"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1523050854058-8df9015c1e4e?w=1920&q=80')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=1920&q=80')`,
             backgroundSize: "cover",
             backgroundPosition: "center",
           }}
@@ -82,32 +75,26 @@ export default function SignupPage() {
             transition={{ duration: 0.8 }}
           >
             <h2 className="text-4xl font-bold mb-4 font-heading">
-              Join the Future<br />
-              <span className="text-primary">of Excellence</span>
+              Welcome Back to<br />
+              <span className="text-primary">NextGen</span>
             </h2>
             <p className="text-gray-300 text-lg max-w-md">
-              Create your account and unlock a world of opportunities. Connect with peers, attend events, and grow your skills.
+              Continue your journey of growth and excellence. Access your personalized dashboard and stay connected with events and opportunities.
             </p>
             
-            {/* Benefits */}
-            <div className="mt-12 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-primary text-sm">✓</span>
-                </div>
-                <p className="text-gray-300">Access exclusive events and workshops</p>
+            {/* Stats */}
+            <div className="mt-12 flex gap-8">
+              <div>
+                <p className="text-3xl font-bold text-primary">5K+</p>
+                <p className="text-gray-400 text-sm">Active Students</p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-primary text-sm">✓</span>
-                </div>
-                <p className="text-gray-300">Connect with mentors and industry experts</p>
+              <div>
+                <p className="text-3xl font-bold text-primary">50+</p>
+                <p className="text-gray-400 text-sm">Events</p>
               </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                  <span className="text-primary text-sm">✓</span>
-                </div>
-                <p className="text-gray-300">Build your professional network</p>
+              <div>
+                <p className="text-3xl font-bold text-primary">20+</p>
+                <p className="text-gray-400 text-sm">Programs</p>
               </div>
             </div>
           </motion.div>
@@ -115,7 +102,7 @@ export default function SignupPage() {
       </div>
 
       {/* Right Side - Form */}
-      <div className="flex-1 flex items-center justify-center p-8 overflow-y-auto">
+      <div className="flex-1 flex items-center justify-center p-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -132,8 +119,8 @@ export default function SignupPage() {
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Create Account</h1>
-            <p className="text-gray-400">Fill in your details to get started</p>
+            <h1 className="text-3xl font-bold text-white mb-2">Sign In</h1>
+            <p className="text-gray-400">Enter your credentials to access your account</p>
           </div>
 
           {/* Error Message */}
@@ -150,26 +137,6 @@ export default function SignupPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
-                  <FiUser size={18} />
-                </div>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                  placeholder="John Doe"
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
-                />
-              </div>
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Email Address
@@ -204,8 +171,7 @@ export default function SignupPage() {
                   value={formData.password}
                   onChange={handleChange}
                   required
-                  minLength={6}
-                  placeholder="Min 6 characters"
+                  placeholder="Enter your password"
                   className="w-full pl-12 pr-12 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
                 />
                 <button
@@ -218,42 +184,17 @@ export default function SignupPage() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                School / Institution
-              </label>
-              <div className="relative">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">
-                  <FiMapPin size={18} />
-                </div>
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="text"
-                  name="school"
-                  value={formData.school}
-                  onChange={handleChange}
-                  placeholder="Federal University of Technology"
-                  className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all"
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-white/20 bg-white/5 text-primary focus:ring-primary/50"
                 />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Level
+                <span className="text-sm text-gray-400">Remember me</span>
               </label>
-              <select
-                name="level"
-                value={formData.level}
-                onChange={handleChange}
-                className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer"
-              >
-                <option value="" className="bg-black">Select your level</option>
-                <option value="100" className="bg-black">100 Level</option>
-                <option value="200" className="bg-black">200 Level</option>
-                <option value="300" className="bg-black">300 Level</option>
-                <option value="400" className="bg-black">400 Level</option>
-                <option value="500" className="bg-black">500 Level</option>
-              </select>
+              <Link href="/forgot-password" className="text-sm text-primary hover:underline">
+                Forgot password?
+              </Link>
             </div>
 
             <motion.button
@@ -266,10 +207,10 @@ export default function SignupPage() {
               {isLoading ? (
                 <>
                   <FiLoader className="animate-spin" />
-                  Creating account...
+                  Signing in...
                 </>
               ) : (
-                "Create Account"
+                "Sign In"
               )}
             </motion.button>
           </form>
@@ -281,11 +222,11 @@ export default function SignupPage() {
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          {/* Sign In Link */}
+          {/* Sign Up Link */}
           <p className="text-center text-gray-400">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary font-semibold hover:underline">
-              Sign in
+            Don&apos;t have an account?{" "}
+            <Link href="/signup" className="text-primary font-semibold hover:underline">
+              Sign up
             </Link>
           </p>
         </motion.div>
