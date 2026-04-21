@@ -1,0 +1,32 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { MongooseModule } from '@nestjs/mongoose';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { EventsModule } from './events/events.module';
+import { StoriesModule } from './stories/stories.module';
+import { AdminModule } from './admin/admin.module';
+import { NotificationModule } from './notification/notification.module';
+import { EmailModule } from './email/email.module';
+
+@Module({
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
+    MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/nextgen'),
+    AuthModule,
+    UsersModule,
+    EventsModule,
+    StoriesModule,
+    AdminModule,
+    NotificationModule,
+    EmailModule,
+  ],
+  controllers: [AppController],
+  providers: [AppService],
+})
+export class AppModule {}
