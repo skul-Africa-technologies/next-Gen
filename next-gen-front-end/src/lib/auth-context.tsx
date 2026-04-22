@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { authApi } from "@/lib/api";
 
@@ -16,7 +22,10 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
+  login: (
+    email: string,
+    password: string
+  ) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
 }
 
@@ -25,49 +34,66 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     checkAuth();
-  }, [pathname]);
+  }, []);
 
   const checkAuth = async () => {
-    const token = localStorage.getItem("accessToken");
-    const storedUser = authApi.getCurrentUser();
+    try {
+      const token = localStorage.getItem("accessToken");
+      const storedUser = authApi.getCurrentUser();
 
-    if (token && storedUser) {
+      if (!token || !storedUser) {
+        clearAuth();
+        setIsLoading(false);
+        return;
+      }
+
       setUser(storedUser);
-      
-      // Try to refresh token if it's about to expire
+
+      // optional refresh
       const refreshed = await authApi.refreshToken();
       if (!refreshed) {
-        // Token refresh failed, logout
         await logout();
       }
-    } else {
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("user");
+    } catch (error) {
+      clearAuth();
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
+  const clearAuth = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+    setUser(null);
+  };
+
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<{ success: boolean; message: string }> => {
     const result = await authApi.adminLogin(email, password);
-    
-    if (result.success) {
-      setUser(result.data?.user);
-      return { success: true, message: 'Login successful' };
+
+    if (result.success && result.data) {
+      setUser(result.data.user);
+      return { success: true, message: "Login successful" };
     }
-    
-    return { success: false, message: result.message };
+
+    return {
+      success: false,
+      message: result.message || "Login failed",
+    };
   };
 
   const logout = async () => {
     await authApi.logout();
-    setUser(null);
+    clearAuth();
     router.push("/admin/login");
   };
 
@@ -89,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
