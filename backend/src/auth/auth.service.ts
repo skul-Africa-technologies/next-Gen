@@ -174,38 +174,53 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshTokenDto: RefreshTokenDto) {
-    const user = await this.userModel.findOne({
-      refreshToken: { $ne: null },
-    });
+async refreshToken(refreshTokenDto: RefreshTokenDto) {
+  const { refreshToken } = refreshTokenDto;
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid refresh token');
+  // 1. Get all users with a refresh token (since it's hashed)
+  const users = await this.userModel.find({
+    refreshToken: { $ne: null },
+  });
+
+  let matchedUser = null;
+
+  // 2. Find matching user by comparing hashed tokens
+  for (const user of users) {
+    if (!user.refreshToken) continue;
+
+    const isMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (isMatch) {
+      matchedUser = user;
+      break;
     }
-
-    const isValid = await bcrypt.compare(
-      refreshTokenDto.refreshToken,
-      user.refreshToken,
-    );
-    if (!isValid) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const newAccessToken = this.generateAccessToken(user._id.toString(), user.role);
-    const newRefreshToken = this.generateRefreshToken();
-
-    user.refreshToken = await bcrypt.hash(newRefreshToken, 10);
-    await user.save();
-
-    return {
-      success: true,
-      message: 'Token refreshed successfully',
-      data: {
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
-      },
-    };
   }
+
+  // 3. If no match → reject
+  if (!matchedUser) {
+    throw new UnauthorizedException('Invalid refresh token');
+  }
+
+  // 4. Generate new tokens
+  const newAccessToken = this.generateAccessToken(
+    matchedUser._id.toString(),
+    matchedUser.role,
+  );
+
+  const newRefreshToken = this.generateRefreshToken();
+
+  // 5. Store new hashed refresh token (rotation)
+  matchedUser.refreshToken = await bcrypt.hash(newRefreshToken, 10);
+  await matchedUser.save();
+
+  return {
+    success: true,
+    message: 'Token refreshed successfully',
+    data: {
+      accessToken: newAccessToken,
+      refreshToken: newRefreshToken,
+    },
+  };
+}
 
   async logout(userId: string) {
     await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });

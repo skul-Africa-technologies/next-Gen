@@ -25,9 +25,8 @@ export class User extends Document {
   @Prop({ type: String, enum: UserRole, default: UserRole.STUDENT })
   role: UserRole;
 
-  @Prop()
-  @Exclude()
-  refreshToken: string;
+  @Prop({ type: String, required: false, default: null })
+  refreshToken: string | null;
 
   @Prop({ default: false })
   isActive: boolean;
@@ -52,7 +51,7 @@ export const UserSchema = SchemaFactory.createForClass(User);
 
 UserSchema.set('toJSON', {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  transform: function(doc: any, ret: any) {
+  transform: function (doc: any, ret: any) {
     return {
       id: ret._id.toString(),
       name: ret.name,
