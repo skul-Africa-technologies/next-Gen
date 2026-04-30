@@ -29,16 +29,21 @@ export default function ProfilePage() {
     }
 
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      const data = {
-        name: user.name || "",
-        email: user.email || "",
-        school: user.school || "",
-        level: user.level || "Freshman",
-      };
-      setUserData(data);
-      setOriginalData(data);
+    if (storedUser && storedUser !== "undefined") {
+      try {
+        const user = JSON.parse(storedUser);
+        const data = {
+          name: user.name || "",
+          email: user.email || "",
+          school: user.school || "",
+          level: user.level || "Freshman",
+        };
+        setUserData(data);
+        setOriginalData(data);
+      } catch (error) {
+        console.error("Failed to parse user from localStorage:", error);
+        localStorage.removeItem("user");
+      }
     }
     setIsLoading(false);
   }, []);
@@ -56,25 +61,37 @@ export default function ProfilePage() {
 
     try {
       const token = localStorage.getItem("accessToken");
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/users/${storedUser._id || storedUser.id}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            name: userData.name,
-            school: userData.school,
-          }),
+      const storedUserStr = localStorage.getItem("user");
+      let storedUser = { _id: null, id: null };
+      if (storedUserStr && storedUserStr !== "undefined") {
+        try {
+          storedUser = JSON.parse(storedUserStr);
+        } catch (error) {
+          console.error("Failed to parse user from localStorage:", error);
+          toast.error("Invalid user data. Please login again.");
+          setIsLoading(false);
+          return;
         }
-      );
+      }
+
+      const userId = storedUser._id || storedUser.id;
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/students/${userId}/profile`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: userData.name,
+          school: userData.school,
+        }),
+      });
 
       if (response.ok) {
+        const result = await response.json();
         const updatedUser = { ...storedUser, ...userData };
         localStorage.setItem("user", JSON.stringify(updatedUser));
+        setOriginalData(userData);
         setIsEditing(false);
         toast.success("Profile updated successfully!");
       } else {

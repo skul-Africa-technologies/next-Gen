@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
+import { StudentsModule } from './students/students.module';
 import { StoriesModule } from './stories/stories.module';
 import { AdminModule } from './admin/admin.module';
 import { NotificationModule } from './notification/notification.module';
@@ -21,6 +22,7 @@ import { EmailModule } from './email/email.module';
     AuthModule,
     UsersModule,
     EventsModule,
+    StudentsModule,
     StoriesModule,
     AdminModule,
     NotificationModule,

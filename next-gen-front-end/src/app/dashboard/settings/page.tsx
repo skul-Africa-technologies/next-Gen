@@ -31,16 +31,21 @@ export default function SettingsPage() {
     }
 
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      const user = JSON.parse(storedUser);
-      const data = {
-        name: user.name || "",
-        email: user.email || "",
-        school: user.school || "",
-        level: user.level || "Freshman",
-      };
-      setFormData(data);
-      setOriginalData(data);
+    if (storedUser && storedUser !== "undefined") {
+      try {
+        const user = JSON.parse(storedUser);
+        const data = {
+          name: user.name || "",
+          email: user.email || "",
+          school: user.school || "",
+          level: user.level || "Freshman",
+        };
+        setFormData(data);
+        setOriginalData(data);
+      } catch (error) {
+        console.error("Failed to parse user from localStorage:", error);
+        localStorage.removeItem("user");
+      }
     }
     setIsLoading(false);
   }, []);
@@ -65,26 +70,44 @@ export default function SettingsPage() {
 
     try {
       const token = localStorage.getItem("accessToken");
-      const storedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const storedUserStr = localStorage.getItem("user");
+      let storedUser = { _id: null, id: null };
+      if (storedUserStr && storedUserStr !== "undefined") {
+        try {
+          storedUser = JSON.parse(storedUserStr);
+        } catch (error) {
+          console.error("Failed to parse user from localStorage:", error);
+          toast.error("Invalid user data. Please login again.");
+          setIsSaving(false);
+          return;
+        }
+      }
       const userId = storedUser._id || storedUser.id;
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      // In real implementation, this would be a PATCH request
-      console.log("Updating user:", userId, "with data:", {
-        name: formData.name,
-        school: formData.school,
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"}/students/${userId}/profile`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          school: formData.school,
+        }),
       });
 
-      // Update local storage
-      const updatedUser = { ...storedUser, ...formData };
-      localStorage.setItem("user", JSON.stringify(updatedUser));
-
-      setOriginalData(formData);
-      setHasChanges(false);
-      setSaveStatus("success");
-      toast.success("Settings saved successfully!");
+      if (response.ok) {
+        const result = await response.json();
+        const updatedUser = { ...storedUser, ...formData };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+        setOriginalData(formData);
+        setHasChanges(false);
+        setSaveStatus("success");
+        toast.success("Settings saved successfully!");
+      } else {
+        setSaveStatus("error");
+        toast.error("Failed to save settings. Please try again.");
+      }
     } catch (error) {
       setSaveStatus("error");
       toast.error("Failed to save settings. Please try again.");

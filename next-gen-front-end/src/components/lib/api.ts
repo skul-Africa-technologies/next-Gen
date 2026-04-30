@@ -27,7 +27,16 @@ export const authApi = {
 
   getCurrentUser: () => {
     const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
+    if (user && user !== "undefined") {
+      try {
+        return JSON.parse(user);
+      } catch (error) {
+        console.error("Failed to parse user from localStorage:", error);
+        localStorage.removeItem("user");
+        return null;
+      }
+    }
+    return null;
   },
 
   refreshToken: async () => {

@@ -35,7 +35,16 @@ export function useStudentApi() {
 
   const getCurrentUser = (): Student | null => {
     const userStr = localStorage.getItem("user");
-    return userStr ? JSON.parse(userStr) : null;
+    if (userStr && userStr !== "undefined") {
+      try {
+        return JSON.parse(userStr);
+      } catch (error) {
+        console.error("Failed to parse user from localStorage:", error);
+        localStorage.removeItem("user");
+        return null;
+      }
+    }
+    return null;
   };
 
   const getUserById = async (id?: string): Promise<Student | null> => {
@@ -61,9 +70,10 @@ export function useStudentApi() {
         throw new Error("Failed to fetch user data");
       }
 
-      const data = await response.json();
-      localStorage.setItem("user", JSON.stringify(data));
-      return data;
+      const result = await response.json();
+      const userData = result.data || result;
+      localStorage.setItem("user", JSON.stringify(userData));
+      return userData as Student;
     } catch (error) {
       toast.error("Failed to fetch user data");
       return getCurrentUser();
@@ -76,7 +86,7 @@ export function useStudentApi() {
     const token = localStorage.getItem("accessToken");
 
     try {
-      const response = await fetch(`${API_URL}/users/${id}`, {
+      const response = await fetch(`${API_URL}/students/${id}/profile`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -89,7 +99,8 @@ export function useStudentApi() {
         throw new Error("Failed to update user");
       }
 
-      const updatedUser = await response.json();
+      const result = await response.json();
+      const updatedUser = result.data || result;
       localStorage.setItem("user", JSON.stringify(updatedUser));
       toast.success("Profile updated successfully!");
       return true;
@@ -115,7 +126,8 @@ export function useStudentApi() {
         throw new Error("Failed to fetch events");
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || [];
     } catch (error) {
       toast.error("Failed to fetch events");
       return [];
@@ -138,7 +150,8 @@ export function useStudentApi() {
         throw new Error("Failed to fetch upcoming events");
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || [];
     } catch (error) {
       toast.error("Failed to fetch upcoming events");
       return [];
@@ -167,21 +180,40 @@ export function useStudentApi() {
         throw new Error("Failed to fetch applied events");
       }
 
-      return await response.json();
+      const result = await response.json();
+      return result.data || [];
     } catch (error) {
-      // Return mock data if API not available
+      toast.error("Failed to fetch applied events");
       return [];
+    }
+  };
+
+  const getStudentDashboardStats = async (studentId: string): Promise<{ totalEvents: number; upcomingEvents: number; appliedEvents: number }> => {
+    if (!checkAuth()) return { totalEvents: 0, upcomingEvents: 0, appliedEvents: 0 };
+
+    try {
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(`${API_URL}/students/${studentId}/dashboard`, {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch dashboard stats");
+      }
+
+      const result = await response.json();
+      return result.data || { totalEvents: 0, upcomingEvents: 0, appliedEvents: 0 };
+    } catch (error) {
+      toast.error("Failed to fetch dashboard stats");
+      return { totalEvents: 0, upcomingEvents: 0, appliedEvents: 0 };
     }
   };
 
   const applyForEvent = async (eventId: string): Promise<boolean> => {
     if (!checkAuth()) return false;
-
-    const user = getCurrentUser();
-    if (!user?._id) {
-      toast.error("User not found");
-      return false;
-    }
 
     const token = localStorage.getItem("accessToken");
 
@@ -192,7 +224,6 @@ export function useStudentApi() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ studentId: user._id }),
       });
 
       if (!response.ok) {
@@ -215,5 +246,6 @@ export function useStudentApi() {
     getUpcomingEvents,
     getStudentAppliedEvents,
     applyForEvent,
+    getStudentDashboardStats,
   };
 }

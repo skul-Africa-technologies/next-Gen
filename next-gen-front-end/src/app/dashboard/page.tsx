@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { FiCalendar, FiTrendingUp, FiUsers, FiClock, FiBell } from "react-icons/fi";
+import { FiCalendar, FiUsers, FiClock, FiBell, FiLoader } from "react-icons/fi";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
+import { useStudentApi } from "@/lib/student-api";
 
 export default function DashboardHome() {
   const [isLoading, setIsLoading] = useState(true);
@@ -12,7 +13,10 @@ export default function DashboardHome() {
     upcomingEvents: 0,
     appliedEvents: 0,
   });
-  const [user, setUser] = useState<any>(null);
+  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  const { getCurrentUser, getUpcomingEvents, getStudentAppliedEvents, getStudentDashboardStats } = useStudentApi();
 
   useEffect(() => {
     const token = localStorage.getItem("accessToken");
@@ -21,21 +25,38 @@ export default function DashboardHome() {
       return;
     }
 
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
+    const fetchDashboardData = async () => {
+      try {
+        const user = getCurrentUser();
+        if (!user?._id) {
+          toast.error("User not found");
+          setIsLoading(false);
+          return;
+        }
 
-    // Simulate loading stats
-    setTimeout(() => {
-      setStats({
-        totalEvents: 12,
-        upcomingEvents: 3,
-        appliedEvents: 2,
-      });
-      setIsLoading(false);
-    }, 800);
-  }, []);
+        // Fetch dashboard stats from dedicated endpoint
+        const [statsRes, upcomingEventsRes] = await Promise.all([
+          getStudentDashboardStats(user._id),
+          getUpcomingEvents(),
+        ]);
+
+        setStats(statsRes);
+
+        // Display up to 3 upcoming events
+        const eventsToShow = Array.isArray(upcomingEventsRes) ? upcomingEventsRes.slice(0, 3) : [];
+        setUpcomingEvents(eventsToShow);
+
+      } catch (err: any) {
+        console.error("Failed to load dashboard data:", err);
+        toast.error("Failed to load dashboard data");
+        setError(err.message || "Failed to load data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [getStudentDashboardStats, getUpcomingEvents, getCurrentUser]);
 
   if (isLoading) {
     return (
@@ -45,25 +66,32 @@ export default function DashboardHome() {
     );
   }
 
-  const firstName = user?.name?.split(" ")[0] || "Student";
+  if (error) {
+    return (
+      <div className="p-4 lg:p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <p className="text-red-400 mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary rounded-lg hover:bg-primary/90"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  const fadeUpVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: (i: number) => ({
-      opacity: 1,
-      y: 0,
-      transition: { duration: 0.5, delay: i * 0.1, ease: "easeOut" as const },
-    }),
-  };
+  const user = getCurrentUser();
+  const displayName = user?.name || "Student";
+  const firstName = displayName.split(" ")[0];
 
   return (
     <div className="w-full">
       {/* Welcome Section */}
       <motion.div
-        custom={0}
-        initial="hidden"
-        animate="visible"
-        variants={fadeUpVariants}
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
         className="mb-8 lg:mb-12"
       >
         <h1 className="text-3xl lg:text-4xl font-bold mb-3">
@@ -115,14 +143,14 @@ export default function DashboardHome() {
           label="Applied Events"
           value={stats.appliedEvents}
           bgGradient="from-primary/20 to-orange-500/20"
-          borderColor="border-orange-500/20"
+          borderColor="border-primary/20"
           glowColor="shadow-[0_0_30px_rgba(249,115,22,0.3)]"
           color="text-orange-400"
           delay={2}
         />
       </motion.div>
 
-      {/* Recent Activity */}
+      {/* Recent & Upcoming Activity */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -131,29 +159,43 @@ export default function DashboardHome() {
       >
         <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
           <FiBell className="text-primary" />
-          Recent & Upcoming
+          Upcoming Events
         </h2>
         <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 + i * 0.1 }}
-              className="flex items-center gap-4 p-3 rounded-xl bg-neutral-800/50 border border-neutral-800 hover:border-primary/50 transition-all duration-300"
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <FiCalendar className="text-primary" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold">Event Title {i}</h3>
-                <p className="text-sm text-neutral-400">Oct 15, 2024</p>
-              </div>
-              <span className="text-xs px-3 py-1 rounded-full bg-primary/20 text-primary font-medium">
-                Upcoming
-              </span>
-            </motion.div>
-          ))}
+          {upcomingEvents.length > 0 ? (
+            upcomingEvents.map((event, index) => (
+              <motion.div
+                key={event._id || index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.7 + index * 0.1 }}
+                className="flex items-center gap-4 p-3 rounded-xl bg-neutral-800/50 border border-neutral-800 hover:border-primary/50 transition-all duration-300"
+              >
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                  <FiCalendar className="text-primary" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">{event.title}</h3>
+                  <p className="text-sm text-neutral-400">
+                    {new Date(event.date).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                    {event.location && ` • ${event.location}`}
+                  </p>
+                </div>
+                <span className="text-xs px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 font-medium">
+                  Upcoming
+                </span>
+              </motion.div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-neutral-400">
+              <FiCalendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No upcoming events</p>
+            </div>
+          )}
         </div>
       </motion.div>
     </div>
