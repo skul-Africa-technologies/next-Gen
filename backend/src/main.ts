@@ -37,30 +37,42 @@ async function bootstrap() {
     }),
   );
 
-  // Auth rate limits
-  app.use(
-    '/api/v1/auth/login',
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 10,
-      message: {
-        success: false,
-        message: 'Too many login attempts, please try again later',
-      },
-    }),
-  );
+   // Auth rate limits
+   app.use(
+     '/api/v1/auth/login',
+     rateLimit({
+       windowMs: 15 * 60 * 1000,
+       max: 10,
+       message: {
+         success: false,
+         message: 'Too many login attempts, please try again later',
+       },
+     }),
+   );
 
-  app.use(
-    '/api/v1/auth/admin/login',
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 10,
-      message: {
-        success: false,
-        message: 'Too many login attempts, please try again later',
-      },
-    }),
-  );
+   app.use(
+     '/api/v1/auth/admin/login',
+     rateLimit({
+       windowMs: 15 * 60 * 1000,
+       max: 10,
+       message: {
+         success: false,
+         message: 'Too many login attempts, please try again later',
+       },
+     }),
+   );
+
+   app.use(
+     '/auth/forgot-password',
+     rateLimit({
+       windowMs: 15 * 60 * 1000,
+       max: 10,
+       message: {
+         success: false,
+         message: 'Too many password reset requests, please try again later',
+       },
+     }),
+   );
 
   // 🌍 CORS
   const frontendUrl =

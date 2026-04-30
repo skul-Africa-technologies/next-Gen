@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiUsers, FiSearch, FiMail, FiMapPin, FiLoader, FiUser, FiChevronLeft, FiChevronRight, FiBook } from "react-icons/fi";
+import { api } from "@/lib/api";
 
 interface Student {
   _id: string;
@@ -29,14 +30,15 @@ export default function AdminStudentsPage() {
 
   const fetchStudents = async () => {
     try {
-      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || "admin-secret-key-2024";
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/students`, {
-        headers: { "x-admin-key": adminKey },
-      });
-      const data = await res.json();
-      setStudents(Array.isArray(data) ? data : []);
+      const result = await api.getStudents(1, 1000);
+      if (result.success && result.data) {
+        setStudents(Array.isArray(result.data) ? result.data : []);
+      } else {
+        setStudents([]);
+      }
     } catch (error) {
       console.error("Failed to fetch students:", error);
+      setStudents([]);
     } finally {
       setLoading(false);
     }

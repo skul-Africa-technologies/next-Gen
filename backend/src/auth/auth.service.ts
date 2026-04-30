@@ -13,13 +13,14 @@ import { Model } from 'mongoose';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { User, UserRole } from './schemas/user.schema';
-import { SignupDto, LoginDto, RefreshTokenDto, AdminSignupDto } from './dto';
+import { SignupDto, LoginDto, RefreshTokenDto, AdminSignupDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
 import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly verificationTokenExpiry = 24 * 60 * 60 * 1000;
+  private readonly resetTokenExpiry = 30 * 60 * 1000; // 30 minutes
 
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
@@ -285,6 +286,92 @@ export class AuthService {
         accessToken,
         refreshToken,
       },
+    };
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const user = await this.userModel.findOne({ email: forgotPasswordDto.email });
+    
+    // Always return the same message regardless of whether the email exists
+    if (!user) {
+      return {
+        success: true,
+        message: 'If an account with this email exists, a reset link has been sent.',
+      };
+    }
+
+    // Generate secure random token
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    // Hash token using SHA256 for deterministic lookup
+    const tokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpiresAt = new Date(Date.now() + this.resetTokenExpiry);
+
+    // Save hashed token and expiry to user
+    user.resetToken = tokenHash;
+    user.resetTokenExpiresAt = resetTokenExpiresAt;
+    await user.save();
+
+    // Send reset email
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    this.emailService.sendPasswordResetEmail({
+      email: user.email,
+      name: user.name,
+      resetLink,
+    }).catch((err) => this.logger.error('Failed to send password reset email', err));
+
+    return {
+      success: true,
+      message: 'If an account with this email exists, a reset link has been sent.',
+    };
+  }
+
+  private async validateResetToken(token: string): Promise<User> {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    
+    const user = await this.userModel.findOne({
+      resetToken: tokenHash,
+      resetTokenExpiresAt: { $gt: new Date() },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token.');
+    }
+
+    return user;
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    // Validate password confirmation
+    if (resetPasswordDto.password !== resetPasswordDto.confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    // Validate token and get user
+    const user = await this.validateResetToken(resetPasswordDto.token);
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(resetPasswordDto.password, 10);
+    
+    // Update password and clear reset token fields
+    user.password = hashedPassword;
+    user.resetToken = undefined;
+    user.resetTokenExpiresAt = undefined;
+    
+    // Invalidate all existing sessions by clearing refresh token
+    user.refreshToken = null;
+    await user.save();
+
+    // Send confirmation email
+    this.emailService.sendPasswordChangedConfirmationEmail({
+      email: user.email,
+      name: user.name,
+    }).catch((err) => this.logger.error('Failed to send password change confirmation email', err));
+
+    return {
+      success: true,
+      message: 'Password has been successfully reset.',
     };
   }
 

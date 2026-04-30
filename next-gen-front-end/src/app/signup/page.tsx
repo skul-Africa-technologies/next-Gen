@@ -25,40 +25,54 @@ export default function SignupPage() {
     setError("");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setIsLoading(true);
+  setError("");
 
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/register`, {
+  try {
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/signup`,
+      {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          ...formData,
-          username: formData.email.split('@')[0],
-          role: "student",
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          school: formData.school,
         }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Registration failed");
       }
+    );
 
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Registration failed. Please try again.");
-    } finally {
-      setIsLoading(false);
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        Array.isArray(data.message)
+          ? data.message.join(", ")
+          : data.message || "Registration failed"
+      );
     }
-  };
+
+    // adjust this depending on your backend response
+    if (data.access_token) {
+      localStorage.setItem("token", data.access_token);
+    }
+
+    if (data.user) {
+      localStorage.setItem("user", JSON.stringify(data.user));
+    }
+
+    router.push("/dashboard");
+  } catch (err: any) {
+    setError(err.message || "Registration failed. Please try again.");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex bg-black">

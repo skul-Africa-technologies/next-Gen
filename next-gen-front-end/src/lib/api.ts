@@ -290,3 +290,26 @@ export const storiesApi = {
     }
   },
 };
+
+// Unified API client for backward compatibility
+export const api = {
+  // Auth
+  login: authApi.adminLogin,
+  logout: async () => {
+    await authApi.logout();
+    return { success: true, message: 'Logged out' };
+  },
+  refreshToken: authApi.refreshToken,
+
+  // Admin
+  getDashboard: adminApi.getDashboard,
+  getActivity: adminApi.getActivity,
+  getStudents: adminApi.getStudents,
+  getEvents: adminApi.getEvents,
+  createEvent: eventsApi.create,
+  deleteEvent: eventsApi.delete,
+  getUsers: usersApi.getAll,
+  deleteUser: usersApi.delete,
+  createStory: storiesApi.create,
+  deleteStory: storiesApi.delete,
+};

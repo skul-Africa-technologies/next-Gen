@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FiPlus, FiTrash2, FiEdit2, FiCalendar, FiMapPin, FiImage, FiLoader, FiX, FiCheck, FiAlertCircle } from "react-icons/fi";
+import { api } from "@/lib/api";
 
 interface Event {
   _id: string;
@@ -44,14 +45,15 @@ export default function AdminEventsPage() {
 
   const fetchEvents = async () => {
     try {
-      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || "admin-secret-key-2024";
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/events`, {
-        headers: { "x-admin-key": adminKey },
-      });
-      const data = await res.json();
-      setEvents(Array.isArray(data) ? data : []);
+      const result = await api.getEvents(1, 50);
+      if (result.success && result.data) {
+        setEvents(Array.isArray(result.data) ? result.data : []);
+      } else {
+        setEvents([]);
+      }
     } catch (error) {
       console.error("Failed to fetch events:", error);
+      setEvents([]);
     } finally {
       setLoading(false);
     }
@@ -66,27 +68,21 @@ export default function AdminEventsPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || "admin-secret-key-2024";
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/events`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-admin-key": adminKey,
-        },
-        body: JSON.stringify(formData),
-      });
+      const result = await api.createEvent(formData);
 
-      if (!res.ok) throw new Error("Failed to create event");
-
-      await fetchEvents();
-      setShowModal(false);
-      setFormData({ title: "", description: "", date: "", location: "", imageUrl: "" });
-      showToast("success", "Event created successfully!");
+      if (result.success) {
+        await fetchEvents();
+        setShowModal(false);
+        setFormData({ title: "", description: "", date: "", location: "", imageUrl: "" });
+        showToast("success", "Event created successfully!");
+      } else {
+        showToast("error", result.message || "Failed to create event.");
+      }
     } catch (error) {
       showToast("error", "Failed to create event. Please try again.");
     } finally {
@@ -96,17 +92,15 @@ export default function AdminEventsPage() {
 
   const handleDelete = async (id: string) => {
     try {
-      const adminKey = process.env.NEXT_PUBLIC_ADMIN_KEY || "admin-secret-key-2024";
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/events/${id}`, {
-        method: "DELETE",
-        headers: { "x-admin-key": adminKey },
-      });
+      const result = await api.deleteEvent(id);
 
-      if (!res.ok) throw new Error("Failed to delete event");
-
-      setEvents(events.filter(e => e._id !== id));
-      setDeleteConfirm(null);
-      showToast("success", "Event deleted successfully!");
+      if (result.success) {
+        setEvents(events.filter(e => e._id !== id));
+        setDeleteConfirm(null);
+        showToast("success", "Event deleted successfully!");
+      } else {
+        showToast("error", result.message || "Failed to delete event.");
+      }
     } catch (error) {
       showToast("error", "Failed to delete event. Please try again.");
     }
@@ -140,7 +134,7 @@ export default function AdminEventsPage() {
             exit={{ opacity: 0, y: -20 }}
             className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-xl flex items-center gap-3 ${
               toast.type === "success" 
-                ? "bg-green-500/10 border border-green-500/30 text-green-400" 
+                ? "bg-green-500/10 border border-green-500/30 text-green-400"
                 : "bg-red-500/10 border border-red-500/30 text-red-400"
             }`}
           >

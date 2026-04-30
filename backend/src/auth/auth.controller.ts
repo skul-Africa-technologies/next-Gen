@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { SignupDto, LoginDto, RefreshTokenDto, AdminSignupDto, ResendVerificationDto } from './dto';
+import { SignupDto, LoginDto, RefreshTokenDto, AdminSignupDto, ResendVerificationDto, ForgotPasswordDto, ResetPasswordDto } from './dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './guards/roles.decorator';
@@ -38,6 +38,20 @@ export class AuthController {
   @ApiOperation({ summary: 'Resend verification email' })
   async resendVerification(@Body() resendDto: ResendVerificationDto) {
     return this.authService.resendVerificationEmail(resendDto.email);
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Request password reset' })
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    return this.authService.forgotPassword(forgotPasswordDto);
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password with token' })
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 
   @Post('login')

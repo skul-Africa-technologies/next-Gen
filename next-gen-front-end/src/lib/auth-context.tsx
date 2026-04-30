@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  ReactNode,
-} from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { authApi } from "@/lib/api";
 
 interface User {
@@ -19,51 +13,56 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
-  isLoading: boolean;
+  isAuthLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
-  login: (
-    email: string,
-    password: string
-  ) => Promise<{ success: boolean; message: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; message: string }>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+export { AuthContext };
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const router = useRouter();
-  const pathname = usePathname();
 
+  // Initialize auth state from localStorage
   useEffect(() => {
-    checkAuth();
+    initializeAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const checkAuth = async () => {
+  const initializeAuth = async () => {
+    setIsAuthLoading(true);
+    
     try {
-      const token = localStorage.getItem("accessToken");
-      const storedUser = authApi.getCurrentUser();
+      // Load auth state from localStorage
+      const accessToken = localStorage.getItem("accessToken");
+      const storedUser = localStorage.getItem("user");
 
-      if (!token || !storedUser) {
+      // If tokens exist, restore user from localStorage
+      if (accessToken && storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          setUser(parsedUser);
+        } catch (_) {
+          clearAuth();
+        }
+      } else {
+        // No tokens - clear auth
         clearAuth();
-        setIsLoading(false);
-        return;
-      }
-
-      setUser(storedUser);
-
-      // optional refresh
-      const refreshed = await authApi.refreshToken();
-      if (!refreshed) {
-        await logout();
       }
     } catch (error) {
+      console.error("Auth initialization error:", error);
       clearAuth();
     } finally {
-      setIsLoading(false);
+      setIsAuthLoading(false);
+      setIsInitialized(true);
     }
   };
 
@@ -71,28 +70,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("user");
+    authApi.logout();
     setUser(null);
   };
 
-  const login = async (
-    email: string,
-    password: string
-  ): Promise<{ success: boolean; message: string }> => {
+  const login = async (email: string, password: string): Promise<{ success: boolean; message: string }> => {
     const result = await authApi.adminLogin(email, password);
 
     if (result.success && result.data) {
-      setUser(result.data.user);
       return { success: true, message: "Login successful" };
     }
 
-    return {
-      success: false,
-      message: result.message || "Login failed",
-    };
+    return { success: false, message: result.message || "Login failed" };
   };
 
   const logout = async () => {
-    await authApi.logout();
+    try {
+      await authApi.logout();
+    } catch (_) {
+      // Ignore logout errors
+    }
     clearAuth();
     router.push("/admin/login");
   };
@@ -101,7 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
-        isLoading,
+        isAuthLoading: isAuthLoading || !isInitialized,
         isAuthenticated: !!user,
         isAdmin: user?.role === "admin",
         login,

@@ -20,8 +20,10 @@ export default function Events() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const data = await eventsApi.getAll();
-      setEvents(data || []);
+      const response = await eventsApi.getAll();
+      // Handle ApiResponse wrapper {success, message, data}
+      const data = response && typeof response === 'object' && 'data' in response ? response.data : response;
+      setEvents(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err) {
       console.error("Failed to fetch events:", err);
@@ -35,8 +37,10 @@ export default function Events() {
     setSearchTerm(term);
     if (term.trim()) {
       try {
-        const results = await eventsApi.search(term);
-        setEvents(results);
+        const response = await eventsApi.search(term);
+        // Handle ApiResponse wrapper
+        const data = response && typeof response === 'object' && 'data' in response ? response.data : response;
+        setEvents(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error("Search failed:", err);
       }

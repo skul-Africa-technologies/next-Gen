@@ -385,4 +385,211 @@ export class EmailService {
   </body>
 </html>`;
   }
+
+  async sendPasswordResetEmail(info: { email: string; name: string; resetLink: string }): Promise<void> {
+    const emailFrom = this.configService.get<string>('EMAIL_FROM') || 'noreply@nextgen.com';
+    const appName = 'NextGen';
+
+    const htmlContent = this.getPasswordResetTemplate(info.name, info.resetLink);
+
+    await this.withRetry(
+      async () => {
+        await this.transporter.sendMail({
+          from: `${appName} <${emailFrom}>`,
+          to: info.email,
+          subject: 'Reset Your Password - NextGen',
+          html: htmlContent,
+        });
+        this.logger.log(`Password reset email sent to ${info.email}`);
+      },
+      `password reset email to ${info.email}`,
+    );
+  }
+
+  private getPasswordResetTemplate(name: string, resetLink: string): string {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Your Password - NextGen</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td align="center" style="padding: 40px 20px;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #111111; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(255, 107, 0, 0.15);">
+            <!-- Header -->
+            <tr>
+              <td style="padding: 0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td height="4" style="background: linear-gradient(90deg, #FF6B00 0%, #FF8C33 100%);"></td>
+                  </tr>
+                </table>
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #161616; padding: 30px 40px;">
+                  <tr>
+                    <td align="center">
+                      <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+                        Next<span style="color: #FF6B00;">Gen</span>
+                      </h1>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding: 40px;">
+                <h2 style="margin: 0 0 20px 0; color: #FFFFFF; font-size: 24px; font-weight: 600;">
+                  Reset Your Password
+                </h2>
+                <p style="margin: 0 0 10px 0; color: #A0A0A0; font-size: 16px; line-height: 1.6;">
+                  Hi <strong style="color: #FFFFFF;">${this.escapeHtml(name)}</strong>,
+                </p>
+                <p style="margin: 0 0 20px 0; color: #A0A0A0; font-size: 16px; line-height: 1.6;">
+                  You requested to reset your password. Click the button below to choose a new password.
+                </p>
+
+                <!-- CTA Button -->
+                <table border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td align="center" style="border-radius: 12px; background: linear-gradient(135deg, #FF6B00 0%, #FF8533 100%);" bgcolor="#FF6B00">
+                      <a href="${resetLink}" style="font-size: 16px; font-weight: 600; color: #FFFFFF; text-decoration: none; padding: 16px 32px; display: inline-block; border-radius: 12px;">
+                        Reset Password
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin: 30px 0 0 0; color: #707070; font-size: 14px; line-height: 1.6;">
+                  This link will expire in 30 minutes. If you didn't request a password reset, you can safely ignore this email.
+                </p>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding: 30px 40px; background-color: #0D0D0D; border-top: 1px solid #222222;">
+                <p style="margin: 0; color: #666666; font-size: 13px; text-align: center; line-height: 1.5;">
+                  Need help? Contact us at <a href="mailto:support@nextgen.com" style="color: #FF6B00; text-decoration: none;">support@nextgen.com</a>
+                </p>
+                <p style="margin: 10px 0 0 0; color: #444444; font-size: 12px; text-align: center;">
+                  © ${new Date().getFullYear()} NextGen. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+  }
+
+  async sendPasswordChangedConfirmationEmail(user: UserInfo): Promise<void> {
+    const emailFrom = this.configService.get<string>('EMAIL_FROM') || 'noreply@nextgen.com';
+    const appName = 'NextGen';
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:3000';
+
+    const htmlContent = this.getPasswordChangedTemplate(user.name, frontendUrl);
+
+    await this.withRetry(
+      async () => {
+        await this.transporter.sendMail({
+          from: `${appName} <${emailFrom}>`,
+          to: user.email,
+          subject: 'Your Password Has Been Changed - NextGen',
+          html: htmlContent,
+        });
+        this.logger.log(`Password change confirmation email sent to ${user.email}`);
+      },
+      `password change confirmation email to ${user.email}`,
+    );
+  }
+
+  private getPasswordChangedTemplate(name: string, frontendUrl: string): string {
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Changed - NextGen</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #0A0A0A; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table width="100%" border="0" cellspacing="0" cellpadding="0">
+      <tr>
+        <td align="center" style="padding: 40px 20px;">
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #111111; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 60px rgba(255, 107, 0, 0.15);">
+            <!-- Header -->
+            <tr>
+              <td style="padding: 0;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td height="4" style="background: linear-gradient(90deg, #FF6B00 0%, #FF8C33 100%);"></td>
+                  </tr>
+                </table>
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #161616; padding: 30px 40px;">
+                  <tr>
+                    <td align="center">
+                      <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: 700; letter-spacing: -0.5px;">
+                        Next<span style="color: #FF6B00;">Gen</span>
+                      </h1>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Body -->
+            <tr>
+              <td style="padding: 40px;">
+                <h2 style="margin: 0 0 20px 0; color: #00C853; font-size: 24px; font-weight: 600;">
+                  Password Successfully Changed
+                </h2>
+                <p style="margin: 0 0 10px 0; color: #A0A0A0; font-size: 16px; line-height: 1.6;">
+                  Hi <strong style="color: #FFFFFF;">${this.escapeHtml(name)}</strong>,
+                </p>
+                <p style="margin: 0 0 20px 0; color: #A0A0A0; font-size: 16px; line-height: 1.6;">
+                  Your password has been successfully changed. Your account is now secure.
+                </p>
+
+                <p style="margin: 0 0 30px 0; color: #707070; font-size: 14px; line-height: 1.6;">
+                  If you did not make this change, please contact our support team immediately.
+                </p>
+
+                <!-- CTA Button -->
+                <table border="0" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td align="center" style="border-radius: 12px; background: linear-gradient(135deg, #FF6B00 0%, #FF8533 100%);" bgcolor="#FF6B00">
+                      <a href="${frontendUrl}" style="font-size: 16px; font-weight: 600; color: #FFFFFF; text-decoration: none; padding: 16px 32px; display: inline-block; border-radius: 12px;">
+                        Go to Login
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Footer -->
+            <tr>
+              <td style="padding: 30px 40px; background-color: #0D0D0D; border-top: 1px solid #222222;">
+                <p style="margin: 0; color: #666666; font-size: 13px; text-align: center; line-height: 1.5;">
+                  Need help? Contact us at <a href="mailto:support@nextgen.com" style="color: #FF6B00; text-decoration: none;">support@nextgen.com</a>
+                </p>
+                <p style="margin: 10px 0 0 0; color: #444444; font-size: 12px; text-align: center;">
+                  © ${new Date().getFullYear()} NextGen. All rights reserved.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+  }
 }
