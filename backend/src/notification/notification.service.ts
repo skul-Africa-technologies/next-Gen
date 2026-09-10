@@ -1,9 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { PrismaService } from '../prisma/prisma.service';
 import * as nodemailer from 'nodemailer';
-import { User } from '../auth/schemas/user.schema';
 
 @Injectable()
 export class NotificationService {
@@ -11,7 +9,7 @@ export class NotificationService {
 
   constructor(
     private configService: ConfigService,
-    @InjectModel(User.name) private userModel: Model<User>,
+    private prisma: PrismaService,
   ) {
     this.transporter = nodemailer.createTransport({
       host: this.configService.get('SMTP_HOST') || 'smtp.gmail.com',
@@ -25,7 +23,10 @@ export class NotificationService {
   }
 
   async sendBulkEmail(subject: string, content: string) {
-    const students = await this.userModel.find({ role: 'student' }).select('email').exec();
+    const students = await this.prisma.user.findMany({
+      where: { role: 'student' },
+      select: { email: true },
+    });
 
     const emails = students.map((student) => student.email);
 

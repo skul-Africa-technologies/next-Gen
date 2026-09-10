@@ -1,9 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User } from '../auth/schemas/user.schema';
-import { Event } from '../events/schemas/event.schema';
-import { Story } from '../stories/schemas/story.schema';
 import { UsersService } from '../users/users.service';
 import { EventsService } from '../events/events.service';
 import { StoriesService } from '../stories/stories.service';

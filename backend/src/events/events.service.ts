@@ -1,6 +1,5 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { PrismaService } from '../prisma/prisma.service';
 import { Event } from './schemas/event.schema';
 import { CreateEventDto, UpdateEventDto } from './dto/event.dto';
 import { EventApplicationsService } from './services/event-applications.service';
@@ -8,17 +7,21 @@ import { EventApplicationsService } from './services/event-applications.service'
 @Injectable()
 export class EventsService {
   constructor(
-    @InjectModel(Event.name) private eventModel: Model<Event>,
+    private prisma: PrismaService,
     private readonly eventApplicationsService: EventApplicationsService,
   ) {}
 
   async create(createEventDto: CreateEventDto, adminId: string) {
-    const event = new this.eventModel({
-      ...createEventDto,
-      createdBy: new Types.ObjectId(adminId),
+    const event = await this.prisma.event.create({
+      data: {
+        title: createEventDto.title,
+        description: createEventDto.description ?? null,
+        date: createEventDto.date,
+        image: createEventDto.image ?? null,
+        location: createEventDto.location,
+        createdBy: adminId,
+      },
     });
-
-    await event.save();
 
     return {
       success: true,
@@ -28,11 +31,9 @@ export class EventsService {
   }
 
   async findAll() {
-    const events = await this.eventModel
-      .find()
-      .sort({ date: 1 })
-      .select('-__v')
-      .exec();
+    const events = await this.prisma.event.findMany({
+      orderBy: { date: 'asc' },
+    });
 
     return {
       success: true,
@@ -42,7 +43,9 @@ export class EventsService {
   }
 
   async findOne(id: string) {
-    const event = await this.eventModel.findById(id).select('-__v').exec();
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+    });
 
     if (!event) {
       throw new NotFoundException('Event not found');
@@ -56,10 +59,10 @@ export class EventsService {
   }
 
   async update(id: string, updateEventDto: UpdateEventDto) {
-    const event = await this.eventModel
-      .findByIdAndUpdate(id, updateEventDto, { new: true })
-      .select('-__v')
-      .exec();
+    const event = await this.prisma.event.update({
+      where: { id },
+      data: updateEventDto,
+    });
 
     if (!event) {
       throw new NotFoundException('Event not found');
@@ -73,11 +76,12 @@ export class EventsService {
   }
 
   async remove(id: string) {
-    const event = await this.eventModel.findByIdAndDelete(id).exec();
-
+    const event = await this.prisma.event.findUnique({ where: { id } });
     if (!event) {
       throw new NotFoundException('Event not found');
     }
+
+    await this.prisma.event.delete({ where: { id } });
 
     return {
       success: true,
@@ -86,31 +90,28 @@ export class EventsService {
   }
 
   async getEventsCount(): Promise<number> {
-    return this.eventModel.countDocuments().exec();
+    return this.prisma.event.count();
   }
 
   async getRecentEvents(limit: number = 5): Promise<Event[]> {
-    return this.eventModel
-      .find()
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .exec();
+    return this.prisma.event.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   }
 
-  async getUpcomingEvents(limit?: number): Promise<Event[]> {
+  async getUpcomingEvents(limit?: number) {
     const now = new Date();
-    const query = this.eventModel
-      .find({ date: { $gt: now } })
-      .sort({ date: 1 });
+    const where = { date: { gt: now } };
 
-    if (limit) {
-      query.limit(limit);
-    }
-
-    return query.exec();
+    return this.prisma.event.findMany({
+      where,
+      orderBy: { date: 'asc' },
+      ...(limit ? { take: limit } : {}),
+    });
   }
 
-  async applyForEvent(eventId: string, studentId: string): Promise<{ success: boolean; message: string; data: any }> {
+  async applyForEvent(eventId: string, studentId: string) {
     const application = await this.eventApplicationsService.applyForEvent(eventId, studentId);
     return {
       success: true,

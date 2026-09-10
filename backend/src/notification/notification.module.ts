@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
-import { MongooseModule } from '@nestjs/mongoose';
 import { NotificationService } from './notification.service';
 import { NotificationController } from './notification.controller';
-import { User, UserSchema } from '../auth/schemas/user.schema';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    PrismaModule,
   ],
   controllers: [NotificationController],
   providers: [NotificationService],

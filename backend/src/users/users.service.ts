@@ -1,8 +1,7 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { User, UserRole } from '../auth/schemas/user.schema';
+import { UserRole } from '../auth/schemas/user.schema';
 import { UpdateUserDto } from './dto/user.dto';
 
 export interface CreateAdminDto {
@@ -13,15 +12,23 @@ export interface CreateAdminDto {
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async findAll() {
-    const users = await this.userModel
-      .find({ role: 'student' })
-      .select('-password -refreshToken')
-      .exec();
+    const users = await this.prisma.user.findMany({
+      where: { role: 'student' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        school: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     return {
       success: true,
@@ -31,10 +38,20 @@ export class UsersService {
   }
 
   async findOne(id: string) {
-    const user = await this.userModel
-      .findById(id)
-      .select('-password -refreshToken')
-      .exec();
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        school: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -48,10 +65,21 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const user = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { new: true })
-      .select('-password -refreshToken')
-      .exec();
+    const user = await this.prisma.user.update({
+      where: { id },
+      data: updateUserDto,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        school: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -65,11 +93,12 @@ export class UsersService {
   }
 
   async remove(id: string) {
-    const user = await this.userModel.findByIdAndDelete(id).exec();
-
+    const user = await this.prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundException('User not found');
     }
+
+    await this.prisma.user.delete({ where: { id } });
 
     return {
       success: true,
@@ -78,30 +107,45 @@ export class UsersService {
   }
 
   async getStudentsCount(): Promise<number> {
-    return this.userModel.countDocuments({ role: 'student' }).exec();
+    return this.prisma.user.count({ where: { role: 'student' } });
   }
 
-  async findOneByRole(role: UserRole): Promise<User | null> {
-    return this.userModel.findOne({ role }).exec();
+  async findOneByRole(role: UserRole) {
+    return this.prisma.user.findFirst({ where: { role } });
   }
 
-  async createAdmin(data: CreateAdminDto): Promise<User> {
-    const existing = await this.userModel.findOne({ email: data.email });
+  async createAdmin(data: CreateAdminDto) {
+    const existing = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
     if (existing) {
       throw new ConflictException('Email already registered');
     }
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
 
-    const admin = new this.userModel({
-      email: data.email,
-      password: hashedPassword,
-      name: data.name || 'Admin',
-      role: UserRole.ADMIN,
-      isActive: true,
-      isEmailVerified: true,
+    const admin = await this.prisma.user.create({
+      data: {
+        email: data.email,
+        password: hashedPassword,
+        name: data.name || 'Admin',
+        role: UserRole.ADMIN,
+        isActive: true,
+        isEmailVerified: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        school: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
-    return admin.save();
+    return admin;
   }
 }

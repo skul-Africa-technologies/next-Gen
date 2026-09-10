@@ -1,22 +1,19 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
+import { PrismaService } from '../prisma/prisma.service';
 import { Story } from './schemas/story.schema';
 import { CreateStoryDto, UpdateStoryDto } from './dto/story.dto';
 
 @Injectable()
 export class StoriesService {
-  constructor(
-    @InjectModel(Story.name) private storyModel: Model<Story>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async create(createStoryDto: CreateStoryDto, adminId: string) {
-    const story = new this.storyModel({
-      ...createStoryDto,
-      createdBy: new Types.ObjectId(adminId),
+    const story = await this.prisma.story.create({
+      data: {
+        ...createStoryDto,
+        createdBy: adminId,
+      },
     });
-
-    await story.save();
 
     return {
       success: true,
@@ -26,11 +23,9 @@ export class StoriesService {
   }
 
   async findAll() {
-    const stories = await this.storyModel
-      .find()
-      .sort({ createdAt: -1 })
-      .select('-__v')
-      .exec();
+    const stories = await this.prisma.story.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
 
     return {
       success: true,
@@ -40,7 +35,9 @@ export class StoriesService {
   }
 
   async findOne(id: string) {
-    const story = await this.storyModel.findById(id).select('-__v').exec();
+    const story = await this.prisma.story.findUnique({
+      where: { id },
+    });
 
     if (!story) {
       throw new NotFoundException('Story not found');
@@ -54,11 +51,12 @@ export class StoriesService {
   }
 
   async remove(id: string) {
-    const story = await this.storyModel.findByIdAndDelete(id).exec();
-
+    const story = await this.prisma.story.findUnique({ where: { id } });
     if (!story) {
       throw new NotFoundException('Story not found');
     }
+
+    await this.prisma.story.delete({ where: { id } });
 
     return {
       success: true,
@@ -67,14 +65,13 @@ export class StoriesService {
   }
 
   async getStoriesCount(): Promise<number> {
-    return this.storyModel.countDocuments().exec();
+    return this.prisma.story.count();
   }
 
   async getRecentStories(limit: number = 5): Promise<Story[]> {
-    return this.storyModel
-      .find()
-      .sort({ createdAt: -1 })
-      .limit(limit)
-      .exec();
+    return this.prisma.story.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
   }
 }

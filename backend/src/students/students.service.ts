@@ -1,7 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model, Types } from 'mongoose';
-import { User } from '../auth/schemas/user.schema';
+import { PrismaService } from '../prisma/prisma.service';
 import { Event } from '../events/schemas/event.schema';
 import { EventApplication } from '../events/schemas/event-application.schema';
 import { UpdateUserDto } from '../users/dto/user.dto';
@@ -14,28 +12,25 @@ export interface StudentDashboardStats {
 
 @Injectable()
 export class StudentsService {
-  constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-    @InjectModel(Event.name) private eventModel: Model<Event>,
-    @InjectModel(EventApplication.name) private applicationModel: Model<EventApplication>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getDashboardStats(studentId: string): Promise<StudentDashboardStats> {
-    const student = await this.userModel.findById(studentId);
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId },
+    });
     if (!student || student.role !== 'student') {
       throw new Error('Student not found');
     }
 
-    const totalEvents = await this.eventModel.countDocuments();
+    const totalEvents = await this.prisma.event.count();
 
     const now = new Date();
-    const upcomingEvents = await this.eventModel.countDocuments({
-      date: { $gt: now },
+    const upcomingEvents = await this.prisma.event.count({
+      where: { date: { gt: now } },
     });
 
-    const appliedEvents = await this.applicationModel.countDocuments({
-      student: new Types.ObjectId(studentId),
-      status: 'accepted',
+    const appliedEvents = await this.prisma.eventApplication.count({
+      where: { studentId, status: 'accepted' },
     });
 
     return {
@@ -46,24 +41,45 @@ export class StudentsService {
   }
 
   async getStudentAppliedEvents(studentId: string) {
-    const applications = await this.applicationModel
-      .find({ student: new Types.ObjectId(studentId) })
-      .populate<{ event: Event }>('event', 'title description date location image')
-      .sort({ appliedAt: -1 })
-      .exec();
+    const applications = await this.prisma.eventApplication.findMany({
+      where: { studentId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            date: true,
+            location: true,
+            image: true,
+          },
+        },
+      },
+      orderBy: { appliedAt: 'desc' },
+    });
 
     return applications.map((app) => ({
-      ...app.event.toJSON ? app.event.toJSON() : app.event,
+      ...app.event,
       applicationStatus: app.status,
       appliedAt: app.appliedAt,
     }));
   }
 
   async getStudentProfile(studentId: string) {
-    const user = await this.userModel
-      .findById(studentId)
-      .select('-password -refreshToken')
-      .exec();
+    const user = await this.prisma.user.findUnique({
+      where: { id: studentId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        school: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException('Student not found');
@@ -73,10 +89,21 @@ export class StudentsService {
   }
 
   async updateStudentProfile(studentId: string, updateUserDto: UpdateUserDto) {
-    const user = await this.userModel
-      .findByIdAndUpdate(studentId, updateUserDto, { new: true })
-      .select('-password -refreshToken')
-      .exec();
+    const user = await this.prisma.user.update({
+      where: { id: studentId },
+      data: updateUserDto,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        school: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
 
     if (!user) {
       throw new NotFoundException('Student not found');

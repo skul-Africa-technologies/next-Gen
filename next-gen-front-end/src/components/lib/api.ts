@@ -1,8 +1,8 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
 
 export const authApi = {
   adminLogin: async (email: string, password: string) => {
-    const res = await fetch(`${API_URL}/api/v1/auth/admin/login`, {
+      const res = await fetch(`${API_URL}/auth/admin/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -43,7 +43,7 @@ export const authApi = {
     try {
       const refreshToken = localStorage.getItem("refreshToken");
 
-      const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+        const res = await fetch(`${API_URL}/auth/refresh`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${refreshToken}`,
