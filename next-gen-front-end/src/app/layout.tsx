@@ -26,11 +26,17 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${poppins.variable} ${spaceGrotesk.variable}`}>
-      <body className="bg-black text-white antialiased font-sans">
+      {/*
+       * Body: antialiased text-white.
+       * Background color is set in globals.css (#050505 for outer shell gap,
+       * or bg-black fallback for dashboard/admin pages via their own layout).
+       * No overflow:hidden here — dashboard/admin routes need their own scroll.
+       * The landing page uses .home-shell (position:fixed) which self-contains.
+       */}
+      <body className="antialiased text-white">
         {children}
         <ToastProvider />
       </body>
     </html>
   );
 }
-

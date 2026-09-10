@@ -1,3 +1,10 @@
+/**
+ * @deprecated
+ * This horizontal navbar is no longer used on the landing page.
+ * The landing page now uses IconSidebar (`src/components/IconSidebar.tsx`)
+ * which provides a vertical glassmorphic icon sidebar.
+ * This file is kept for reference but is not imported anywhere.
+ */
 "use client";
 
 import { useState, useEffect } from "react";
